@@ -1,0 +1,180 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>GitHub Repo Editor</title>
+  <link rel="stylesheet" href="/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+<div class="container">
+  <aside class="left">
+    <h2>Repositories</h2>
+    <select id="repoSelect" size="12"></select>
+    <div class="pager">
+      <button id="prevPage">Prev</button>
+      <span id="pageLabel"></span>
+      <button id="nextPage">Next</button>
+    </div>
+  </aside>
+
+  <main class="right">
+    <div class="controls">
+      <label>Path:
+        <input id="pathInput" placeholder="(blank)=root or e.g. src/" />
+      </label>
+      <button id="browseBtn">Browse</button>
+      <label>Branch:
+        <input id="branchInput" placeholder="(optional) e.g. main" />
+      </label>
+    </div>
+
+    <div id="directoryView" class="panel"></div>
+
+    <div id="editorPanel" class="panel" hidden>
+      <h3 id="fileTitle"></h3>
+      <textarea id="editor" spellcheck="false"></textarea>
+      <div class="row">
+        <input id="commitMsg" placeholder="Commit message" />
+        <button id="saveBtn">Save</button>
+        <button id="deleteBtn" class="danger">Delete</button>
+      </div>
+      <small id="status"></small>
+    </div>
+  </main>
+</div>
+
+<script>
+let page = 1, selectedRepo = null, currentFileSha = null, owner = null;
+
+async function fetchJSON(url, opts={}) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function loadRepos() {
+  document.getElementById('pageLabel').textContent = `Page ${page}`;
+  const repos = await fetchJSON(`/api/repos?page=${page}`);
+  const el = document.getElementById('repoSelect');
+  el.innerHTML = '';
+  repos.forEach(repo => {
+    const opt = document.createElement('option');
+    opt.value = repo.name;
+    opt.textContent = `${repo.full_name}`;
+    opt.dataset.owner = repo.owner.login;
+    el.appendChild(opt);
+  });
+}
+
+document.getElementById('prevPage').onclick = () => { if (page>1){page--; loadRepos();}};
+document.getElementById('nextPage').onclick = () => { page++; loadRepos();};
+
+document.getElementById('repoSelect').onchange = (e) => {
+  const opt = e.target.selectedOptions[0];
+  if (!opt) return;
+  selectedRepo = opt.value;
+  owner = opt.dataset.owner;
+  document.getElementById('directoryView').innerHTML = '';
+  document.getElementById('editorPanel').hidden = true;
+};
+
+async function browse() {
+  const path = document.getElementById('pathInput').value.trim();
+  const ref = document.getElementById('branchInput').value.trim();
+  if (!owner || !selectedRepo) return alert('Select a repository first.');
+
+  const qp = new URLSearchParams({ owner, repo: selectedRepo });
+  if (path) qp.set('path', path);
+  if (ref) qp.set('ref', ref);
+
+  const items = await fetchJSON(`/api/contents?${qp.toString()}`);
+  const panel = document.getElementById('directoryView');
+  panel.innerHTML = '';
+
+  const arr = Array.isArray(items) ? items : [items];
+  arr.forEach(it => {
+    if (it.type === 'dir') {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = `📁 ${it.path}`;
+      details.appendChild(summary);
+
+      summary.onclick = async () => {
+        const sub = await fetchJSON(`/api/contents?owner=${owner}&repo=${selectedRepo}&path=${encodeURIComponent(it.path)}${ref?`&ref=${encodeURIComponent(ref)}`:''}`);
+        const list = document.createElement('ul');
+        (Array.isArray(sub)?sub:[sub]).forEach(child => {
+          const li = document.createElement('li');
+          if (child.type === 'file') {
+            const a = document.createElement('a');
+            a.href = '#';
+            a.textContent = `📝 ${child.name}`;
+            a.onclick = () => openFile(child.path);
+            li.appendChild(a);
+          } else {
+            li.textContent = `📁 ${child.path}`;
+          }
+          list.appendChild(li);
+        });
+        details.replaceChildren(summary, list);
+      };
+
+      panel.appendChild(details);
+    } else if (it.type === 'file') {
+      const a = document.createElement('a');
+      a.href = '#';
+      a.textContent = `📝 ${it.path}`;
+      a.onclick = () => openFile(it.path);
+      panel.appendChild(a);
+      panel.appendChild(document.createElement('br'));
+    }
+  });
+}
+
+async function openFile(path) {
+  const ref = document.getElementById('branchInput').value.trim();
+  const qp = new URLSearchParams({ owner, repo: selectedRepo, path });
+  if (ref) qp.set('ref', ref);
+
+  const file = await fetchJSON(`/api/file?${qp.toString()}`);
+  currentFileSha = file.sha;
+  document.getElementById('fileTitle').textContent = `${path}`;
+  document.getElementById('editor').value = file.content || '';
+  document.getElementById('editorPanel').hidden = false;
+  document.getElementById('status').textContent = '';
+  document.getElementById('deleteBtn').onclick = () => delFile(path);
+  document.getElementById('saveBtn').onclick = () => saveFile(path);
+}
+
+async function saveFile(path) {
+  const content = document.getElementById('editor').value;
+  const message = document.getElementById('commitMsg').value || `Update ${path}`;
+  const branch = document.getElementById('branchInput').value.trim();
+
+  const body = { owner, repo: selectedRepo, path, content, message };
+  if (currentFileSha) body.sha = currentFileSha;
+  if (branch) body.branch = branch;
+
+  const resp = await fetchJSON(`/api/save`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  document.getElementById('status').textContent = `Saved: ${resp.commit && resp.commit.sha ? resp.commit.sha : ''}`;
+  currentFileSha = resp.content && resp.content.sha ? resp.content.sha : currentFileSha;
+}
+
+async function delFile(path) {
+  if (!confirm(`Delete ${path}?`)) return;
+  const message = document.getElementById('commitMsg').value || `Delete ${path}`;
+  const resp = await fetchJSON(`/api/delete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ owner, repo: selectedRepo, path, sha: currentFileSha, message })
+  });
+  document.getElementById('status').textContent = `Deleted in commit ${resp.commit && resp.commit.sha ? resp.commit.sha : ''}`;
+}
+
+document.getElementById('browseBtn').onclick = browse;
+loadRepos();
+</script>
+</body>
+</html>
