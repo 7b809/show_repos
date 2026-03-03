@@ -1,158 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GitHub Repo Editor · Bootstrap</title>
-  <!-- Bootstrap 5 + Icons -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Repo Editor · enhanced</title>
+  <!-- Bootstrap 5 + icons (optional but nice) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
-    /* smooth interactions, pointer for clickable items */
-    .repo-option, .file-item, .dir-summary {
-      cursor: pointer;
-      transition: background-color 0.15s ease;
-    }
-    .repo-option:hover, .file-item:hover, .dir-summary:hover {
-      background-color: #e9ecef;
-    }
-    .file-item .bi, .dir-summary .bi {
-      margin-right: 0.5rem;
-    }
-    #repoSelect option {
-      padding: 6px 8px;
-      border-bottom: 1px solid #f1f3f5;
-    }
-    /* directory tree compact style */
-    .dir-details {
-      background: #f8fafc;
-      border-radius: 0.5rem;
-      margin-bottom: 0.75rem;
-      padding: 0.5rem 0.75rem;
-    }
-    .sub-list {
-      list-style: none;
-      padding-left: 1.5rem;
-      margin-top: 0.5rem;
-      margin-bottom: 0.25rem;
-    }
-    .sub-list li {
-      padding: 0.2rem 0.5rem;
-      border-radius: 0.375rem;
-    }
-    .sub-list li a {
-      text-decoration: none;
-      color: #0d6efd;
-      font-weight: 500;
-    }
-    .sub-list li a:hover {
-      text-decoration: underline;
-    }
-    .btn-icon-label i {
-      margin-right: 0.25rem;
-    }
-    /* responsive tweaks */
-    @media (max-width: 768px) {
-      .container-fluid { padding: 0.5rem; }
-    }
+    body { background: #f4f6f9; }
+    .repo-listbox { min-height: 320px; }
+    .directory-card { max-height: 380px; overflow-y: auto; }
+    .file-item, .folder-summary { cursor: pointer; transition: background 0.1s ease; }
+    .file-item:hover, .folder-summary:hover { background-color: #e9ecef; }
+    .badge-copy { cursor: pointer; }
+    .editor-footer { background: #f8fafc; }
+    .mono { font-family: 'SF Mono', 'Fira Code', monospace; }
   </style>
 </head>
-<body class="bg-light min-vh-100 d-flex align-items-start">
+<body>
 
-<div class="container-fluid py-4">
-  <div class="row g-0 shadow-lg rounded-4 overflow-hidden bg-white border">
+<div class="container-fluid py-4 px-lg-4">
+  <!-- top header with fake "copy repo url" demo (no backend needed) -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+    <h2 class="h4 fw-semibold text-dark"><i class="bi bi-github me-2"></i>GitHub editor</h2>
+    <div class="d-flex gap-2">
+      <input type="text" class="form-control form-control-sm w-auto bg-white" placeholder="owner/repo" id="quickRepoUrl" value="octocat/Hello-World">
+      <button class="btn btn-outline-secondary btn-sm" id="copyQuickRepoBtn" title="Copy to clipboard"><i class="bi bi-clipboard"></i> copy</button>
+    </div>
+  </div>
 
-    <!-- ========== LEFT PANEL – REPO LIST ========== -->
-    <aside class="col-md-3 col-lg-3 border-end p-0 bg-white">
-      <div class="p-4">
-        <h4 class="mb-3 text-primary d-flex align-items-center">
-          <i class="bi bi-github me-2"></i>Repositories
-        </h4>
-        <!-- repo select list with scroll -->
-        <select id="repoSelect" size="12" class="form-select mb-3 border-0 ps-0" style="background-color: transparent; overflow-y: auto;">
-          <!-- populated via JS -->
-        </select>
-
-        <div class="d-flex justify-content-between align-items-center mt-2">
-          <button id="prevPage" class="btn btn-outline-secondary btn-sm px-3"><i class="bi bi-chevron-left"></i> Prev</button>
-          <span id="pageLabel" class="fw-semibold text-dark">Page 1</span>
-          <button id="nextPage" class="btn btn-outline-secondary btn-sm px-3">Next <i class="bi bi-chevron-right"></i></button>
+  <div class="row g-4">
+    <!-- LEFT PANEL: repositories + pagination + quick actions -->
+    <div class="col-lg-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0 pt-3 pb-0">
+          <div class="d-flex align-items-center justify-content-between">
+            <h5 class="fw-semibold mb-0"><i class="bi bi-collection me-1"></i> Repositories</h5>
+            <button class="btn btn-sm btn-outline-primary" id="refreshReposBtn"><i class="bi bi-arrow-repeat"></i></button>
+          </div>
         </div>
-        <div class="mt-2 small text-muted text-center">click repo → browse</div>
+        <div class="card-body pt-2">
+          <select id="repoSelect" size="10" class="form-select form-select-sm repo-listbox bg-white border rounded-3"></select>
+
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <button id="prevPage" class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i> Prev</button>
+            <span id="pageLabel" class="fw-semibold small">Page 1</span>
+            <button id="nextPage" class="btn btn-outline-secondary btn-sm">Next <i class="bi bi-chevron-right"></i></button>
+          </div>
+
+          <!-- extra copy repo full name (selected) -->
+          <div class="mt-3 d-grid gap-2">
+            <button class="btn btn-light btn-sm border" id="copySelectedRepoBtn"><i class="bi bi-files me-1"></i>Copy repo full name</button>
+          </div>
+        </div>
       </div>
-    </aside>
+    </div>
 
-    <!-- ========== RIGHT PANEL – BROWSER + EDITOR ========== -->
-    <main class="col-md-9 col-lg-9 p-4 bg-white">
-
-      <!-- browse controls card -->
-      <div class="card border-0 shadow-sm mb-4 bg-light">
-        <div class="card-body">
+    <!-- RIGHT PANEL: browser + editor -->
+    <div class="col-lg-9">
+      <!-- Controls card -->
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body bg-white">
           <div class="row g-3 align-items-end">
             <div class="col-md-5">
-              <label class="form-label fw-semibold"><i class="bi bi-folder2-open me-1"></i>Path</label>
-              <input id="pathInput" class="form-control form-control-sm" placeholder="blank = root, e.g. src/">
+              <label class="form-label fw-semibold small text-secondary">Path <i class="bi bi-folder2-open"></i></label>
+              <input id="pathInput" class="form-control form-control-sm" placeholder="(blank=root) e.g. src/">
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-semibold"><i class="bi bi-code-branch me-1"></i>Branch</label>
-              <input id="branchInput" class="form-control form-control-sm" placeholder="main (optional)">
+              <label class="form-label fw-semibold small text-secondary">Branch / ref</label>
+              <input id="branchInput" class="form-control form-control-sm" placeholder="e.g. main, dev">
             </div>
             <div class="col-md-2">
-              <button id="browseBtn" class="btn btn-primary w-100 btn-sm">
-                <i class="bi bi-search"></i> Browse
-              </button>
+              <button id="browseBtn" class="btn btn-primary w-100 btn-sm"><i class="bi bi-search me-1"></i>Browse</button>
             </div>
-            <div class="col-md-2 text-md-end">
-              <span class="badge bg-secondary" id="selectedRepoBadge">none</span>
+            <div class="col-md-2">
+              <button class="btn btn-outline-info w-100 btn-sm" id="rawLinkBtn" title="generate raw link for selected file"><i class="bi bi-file-earmark"></i> Raw</button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Directory view card (dynamic) -->
-      <div id="directoryView" class="card border-0 shadow-sm mb-4 p-3 bg-white" style="min-height: 120px;">
-        <div class="text-muted fst-italic small" id="dirPlaceholder">
-          <i class="bi bi-arrow-up-circle me-1"></i> Select a repository, then click Browse
-        </div>
-      </div>
-
-      <!-- Editor panel card (initially hidden) -->
-      <div id="editorPanel" class="card border-0 shadow-lg" hidden>
-        <div class="card-header bg-primary text-white d-flex align-items-center">
-          <i class="bi bi-file-earmark-code me-2"></i>
-          <h5 id="fileTitle" class="mb-0 flex-grow-1"></h5>
-          <span class="badge bg-light text-dark" id="fileShaBadge"></span>
+      <!-- Directory view card with copy/download -->
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center pt-3">
+          <span class="fw-semibold"><i class="bi bi-diagram-2 me-1"></i>Contents</span>
+          <span class="small text-secondary" id="folderStats"></span>
         </div>
         <div class="card-body">
-          <textarea id="editor" class="form-control font-monospace mb-3" rows="12" spellcheck="false" placeholder="file content ..."></textarea>
-
-          <div class="row g-3 align-items-center">
-            <div class="col-md-6">
-              <div class="input-group">
-                <span class="input-group-text bg-white"><i class="bi bi-pencil-square"></i></span>
-                <input id="commitMsg" class="form-control" placeholder="Commit message (auto if empty)">
-              </div>
-            </div>
-            <div class="col-md-3">
-              <button id="saveBtn" class="btn btn-success w-100"><i class="bi bi-check-circle"></i> Save</button>
-            </div>
-            <div class="col-md-3">
-              <button id="deleteBtn" class="btn btn-outline-danger w-100"><i class="bi bi-trash3"></i> Delete</button>
-            </div>
-          </div>
-
-          <div class="mt-3 d-flex align-items-center">
-            <i class="bi bi-info-circle text-secondary me-2"></i>
-            <small id="status" class="text-secondary"></small>
+          <div id="directoryView" class="directory-card bg-light p-3 rounded-3 border" style="max-height: 320px; overflow-y: auto;"></div>
+          <!-- copy all files button (just demo wrapper) -->
+          <div class="mt-2 d-flex gap-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-secondary" id="copyFolderListBtn" disabled><i class="bi bi-copy"></i> copy list (demo)</button>
           </div>
         </div>
       </div>
 
-      <!-- subtle hint -->
-      <div class="text-end small text-secondary mt-2">
-        <i class="bi bi-mouse"></i> click files to edit
+      <!-- Editor Panel -->
+      <div id="editorPanel" class="card shadow-sm border-0" hidden>
+        <div class="card-header bg-white py-3 d-flex flex-wrap align-items-center justify-content-between">
+          <h5 id="fileTitle" class="mb-0 fw-semibold"><i class="bi bi-file-earmark-code me-1"></i> <span class="mono">file</span></h5>
+          <div class="d-flex gap-2 mt-2 mt-sm-0">
+            <button class="btn btn-sm btn-outline-dark" id="downloadFileBtn"><i class="bi bi-download"></i> Download</button>
+            <button class="btn btn-sm btn-outline-secondary" id="copyRawContentBtn"><i class="bi bi-clipboard"></i> copy raw</button>
+            <button class="btn btn-sm btn-outline-primary" id="rawFileLinkBtn"><i class="bi bi-link"></i> raw url</button>
+          </div>
+        </div>
+        <div class="card-body p-0 p-md-2">
+          <textarea id="editor" class="form-control border-0 rounded-0 mono" rows="12" spellcheck="false" placeholder="file content ..."></textarea>
+
+          <div class="row g-2 p-3 align-items-center editor-footer">
+            <div class="col-md-5">
+              <input id="commitMsg" class="form-control form-control-sm" placeholder="commit message (optional)">
+            </div>
+            <div class="col-md-3">
+              <button id="saveBtn" class="btn btn-success w-100 btn-sm"><i class="bi bi-check-circle"></i> Save</button>
+            </div>
+            <div class="col-md-2">
+              <button id="deleteBtn" class="btn btn-danger w-100 btn-sm"><i class="bi bi-trash3"></i> Delete</button>
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-outline-warning w-100 btn-sm" id="cancelEditorBtn" title="close editor"><i class="bi bi-x-circle"></i></button>
+            </div>
+          </div>
+
+          <div class="px-3 pb-3 small">
+            <span id="status" class="text-secondary fst-italic"></span>
+          </div>
+        </div>
       </div>
-    </main>
+
+      <!-- hidden field to store current file raw url -->
+      <div id="currentFileMeta" data-path="" data-sha="" data-repo="" data-owner=""></div>
+    </div>
   </div>
 </div>
 
@@ -163,10 +143,12 @@
   let selectedRepo = null;
   let currentFileSha = null;
   let owner = null;
-  let currentFilePath = '';   // for ui consistency
+  let currentFilePath = null;
+  let currentFileContent = '';    // for copy/download
+  let currentBranch = '';
 
-  // ---------- DOM references ----------
-  const repoSelectEl = document.getElementById('repoSelect');
+  // DOM elements
+  const repoSelect = document.getElementById('repoSelect');
   const prevBtn = document.getElementById('prevPage');
   const nextBtn = document.getElementById('nextPage');
   const pageLabel = document.getElementById('pageLabel');
@@ -174,93 +156,92 @@
   const pathInput = document.getElementById('pathInput');
   const branchInput = document.getElementById('branchInput');
   const directoryView = document.getElementById('directoryView');
-  const dirPlaceholder = document.getElementById('dirPlaceholder');
   const editorPanel = document.getElementById('editorPanel');
   const fileTitle = document.getElementById('fileTitle');
-  const fileShaBadge = document.getElementById('fileShaBadge');
   const editor = document.getElementById('editor');
   const commitMsg = document.getElementById('commitMsg');
-  const statusDiv = document.getElementById('status');
   const saveBtn = document.getElementById('saveBtn');
   const deleteBtn = document.getElementById('deleteBtn');
-  const selectedRepoBadge = document.getElementById('selectedRepoBadge');
+  const statusDiv = document.getElementById('status');
+  const copySelectedRepoBtn = document.getElementById('copySelectedRepoBtn');
+  const copyQuickRepoBtn = document.getElementById('copyQuickRepoBtn');
+  const quickRepoUrl = document.getElementById('quickRepoUrl');
+  const refreshReposBtn = document.getElementById('refreshReposBtn');
+  const rawLinkBtn = document.getElementById('rawLinkBtn');          // from browse row
+  const downloadFileBtn = document.getElementById('downloadFileBtn');
+  const copyRawContentBtn = document.getElementById('copyRawContentBtn');
+  const rawFileLinkBtn = document.getElementById('rawFileLinkBtn');
+  const cancelEditorBtn = document.getElementById('cancelEditorBtn');
+  const folderStats = document.getElementById('folderStats');
+  const copyFolderListBtn = document.getElementById('copyFolderListBtn');
+  const currentFileMeta = document.getElementById('currentFileMeta');
 
-  // ---------- API mocks (keeping same fetchJSON) ----------
+  // helper fetch
   async function fetchJSON(url, opts = {}) {
     const r = await fetch(url, opts);
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   }
 
-  // ---------- load repos + update UI ----------
+  // load repos
   async function loadRepos() {
     pageLabel.textContent = `Page ${page}`;
     try {
       const repos = await fetchJSON(`/api/repos?page=${page}`);
-      repoSelectEl.innerHTML = '';
-      if (!repos || repos.length === 0) {
+      repoSelect.innerHTML = '';
+      if (!repos.length) {
         const opt = document.createElement('option');
         opt.textContent = '— no repos —';
-        opt.disabled = true;
-        repoSelectEl.appendChild(opt);
+        repoSelect.appendChild(opt);
       } else {
         repos.forEach(repo => {
           const opt = document.createElement('option');
           opt.value = repo.name;
           opt.textContent = `${repo.full_name}`;
           opt.dataset.owner = repo.owner.login;
-          repoSelectEl.appendChild(opt);
+          repoSelect.appendChild(opt);
         });
       }
-      // reset selection UI
-      selectedRepo = null;
-      owner = null;
-      selectedRepoBadge.textContent = 'none';
     } catch (e) {
-      showTemporaryStatus('Failed to load repos', 'danger');
+      repoSelect.innerHTML = '<option>⚠️ error loading</option>';
     }
   }
 
-  // helper for inline status (right panel)
-  function showTemporaryStatus(msg, type = 'secondary', timeout = 3000) {
-    const statusSpan = document.getElementById('status'); // we reuse bottom status
-    if (statusSpan) {
-      statusSpan.innerHTML = `<span class="text-${type}">${msg}</span>`;
-      if (timeout) setTimeout(() => { statusSpan.innerHTML = ''; }, timeout);
-    } else alert(msg);
-  }
+  prevBtn.onclick = () => { if (page > 1) { page--; loadRepos(); } };
+  nextBtn.onclick = () => { page++; loadRepos(); };
+  refreshReposBtn.onclick = loadRepos;
 
-  // ---------- repo select change (manual click) ----------
-  repoSelectEl.addEventListener('change', (e) => {
+  // select repo
+  repoSelect.onchange = (e) => {
     const opt = e.target.selectedOptions[0];
-    if (!opt || opt.disabled) return;
+    if (!opt || !opt.dataset.owner) return;
     selectedRepo = opt.value;
     owner = opt.dataset.owner;
-    selectedRepoBadge.textContent = `${owner}/${selectedRepo}`;
-    // reset directory and editor panel
-    directoryView.innerHTML = `<div class="text-muted fst-italic"><i class="bi bi-hand-index-thumb"></i> Ready. Click Browse to see contents.</div>`;
+    directoryView.innerHTML = '<div class="text-secondary">⬆️ browse to show contents</div>';
     editorPanel.hidden = true;
-    currentFileSha = null;
-    fileShaBadge.textContent = '';
-  });
+    // update meta
+    currentFileMeta.dataset.repo = selectedRepo;
+    currentFileMeta.dataset.owner = owner;
+    statusDiv.textContent = '';
+  };
 
-  // pagination buttons
-  prevBtn.addEventListener('click', () => {
-    if (page > 1) { page--; loadRepos(); }
-  });
-  nextBtn.addEventListener('click', () => {
-    page++; loadRepos();
-  });
+  // copy selected repo full name (owner/repo)
+  copySelectedRepoBtn.onclick = () => {
+    if (!owner || !selectedRepo) { alert('select a repo first'); return; }
+    const full = `${owner}/${selectedRepo}`;
+    navigator.clipboard?.writeText(full).then(() => statusDiv.textContent = '✓ repo name copied').catch(() => alert('copy failed'));
+  };
 
-  // ---------- BROWSE button – main directory listing (button-wise) ----------
-  browseBtn.addEventListener('click', async () => {
-    if (!owner || !selectedRepo) {
-      alert('Please select a repository from the left panel.');
-      return;
-    }
+  copyQuickRepoBtn.onclick = () => {
+    navigator.clipboard?.writeText(quickRepoUrl.value).then(() => statusDiv.textContent = '✓ quick repo copied').catch(() => {});
+  };
 
+  // ---------- browse ----------
+  async function browse() {
     const path = pathInput.value.trim();
     const ref = branchInput.value.trim();
+    if (!owner || !selectedRepo) { alert('select repository'); return; }
+    currentBranch = ref; // store for raw links
 
     const qp = new URLSearchParams({ owner, repo: selectedRepo });
     if (path) qp.set('path', path);
@@ -268,140 +249,154 @@
 
     try {
       const items = await fetchJSON(`/api/contents?${qp.toString()}`);
-      renderDirectoryView(items, path, ref);
-      editorPanel.hidden = true;         // hide editor when browsing
-      statusDiv.innerHTML = '';           // clear status
-    } catch (err) {
-      directoryView.innerHTML = `<div class="alert alert-warning mb-0">⚠️ Error: ${err.message}</div>`;
-    }
-  });
+      directoryView.innerHTML = '';
+      const arr = Array.isArray(items) ? items : [items];
+      folderStats.textContent = `${arr.length} item(s)`;
 
-  // ---------- render directory (interactive click layout) ----------
-  function renderDirectoryView(items, currentPath, ref) {
-    directoryView.innerHTML = '';  // clear
-
-    if (!items || (Array.isArray(items) && items.length === 0)) {
-      directoryView.innerHTML = '<div class="text-muted">📂 Empty directory</div>';
-      return;
-    }
-
-    // Normalize to array
-    const arr = Array.isArray(items) ? items : [items];
-    const container = document.createElement('div');
-    container.classList.add('dir-listing');
-
-    // optional parent link (if not root)
-    if (currentPath && currentPath.includes('/')) {
-      const parentLink = document.createElement('div');
-      parentLink.className = 'mb-2 p-1 bg-light rounded';
-      parentLink.innerHTML = `<i class="bi bi-arrow-up-short"></i> <a href="#" class="parent-dir-link">.. (parent)</a>`;
-      parentLink.querySelector('a').addEventListener('click', (e) => {
-        e.preventDefault();
-        const parent = currentPath.split('/').slice(0, -1).join('/') || '';
-        pathInput.value = parent;
-        browseBtn.click();  // trigger browse again
-      });
-      container.appendChild(parentLink);
-    }
-
-    // create cards / interactive items
-    arr.forEach(it => {
-      if (it.type === 'dir') {
-        const dirCard = document.createElement('div');
-        dirCard.className = 'dir-details border';
-        // summary line with folder icon – click toggles sub list
-        const summary = document.createElement('div');
-        summary.className = 'dir-summary d-flex align-items-center fw-semibold';
-        summary.innerHTML = `<i class="bi bi-folder-fill text-warning me-2"></i> ${it.path}  <span class="ms-auto badge bg-info bg-opacity-10 text-dark">folder</span>`;
-        summary.setAttribute('data-path', it.path);
-        summary.setAttribute('role', 'button');
-
-        const subContainer = document.createElement('div');
-        subContainer.className = 'sub-container mt-1';
-        subContainer.style.display = 'none'; // hidden initially, expand on click
-
-        // attach click to summary -> load subfolder via API (button-wise)
-        summary.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          // if already expanded and loaded, you could toggle – but here we fetch fresh each time.
-          // for simplicity we always fetch sub contents
-          const subPath = summary.dataset.path;
-          const ref = branchInput.value.trim();
-          try {
-            const subItems = await fetchJSON(`/api/contents?owner=${owner}&repo=${selectedRepo}&path=${encodeURIComponent(subPath)}${ref ? `&ref=${encodeURIComponent(ref)}` : ''}`);
-            // build a nice list
-            subContainer.innerHTML = ''; // clear
-            const list = document.createElement('ul');
-            list.className = 'sub-list';
-            const subArr = Array.isArray(subItems) ? subItems : [subItems];
-            subArr.forEach(child => {
-              const li = document.createElement('li');
-              if (child.type === 'file') {
-                li.innerHTML = `<i class="bi bi-file-earmark-text text-secondary me-2"></i><a href="#" class="file-open-link" data-path="${child.path}">${child.name}</a>`;
-                // attach click to open file
-                li.querySelector('.file-open-link').addEventListener('click', (e) => {
-                  e.preventDefault();
-                  openFile(child.path);
-                });
-              } else {
-                li.innerHTML = `<i class="bi bi-folder text-warning me-2"></i>${child.path} (folder)`;
-              }
-              list.appendChild(li);
-            });
-            subContainer.appendChild(list);
-            subContainer.style.display = subContainer.style.display === 'none' ? 'block' : 'none';
-          } catch (error) {
-            subContainer.innerHTML = `<div class="text-danger small">failed to load</div>`;
-            subContainer.style.display = 'block';
-          }
-        });
-
-        dirCard.appendChild(summary);
-        dirCard.appendChild(subContainer);
-        container.appendChild(dirCard);
-
-      } else if (it.type === 'file') {
-        // file item – click to open
-        const fileDiv = document.createElement('div');
-        fileDiv.className = 'file-item d-flex align-items-center p-2 mb-1 bg-white border rounded';
-        fileDiv.innerHTML = `<i class="bi bi-file-earmark-text text-primary me-2"></i> <span class="flex-grow-1">${it.path}</span> <i class="bi bi-pencil-square text-secondary"></i>`;
-        fileDiv.setAttribute('data-path', it.path);
-        fileDiv.addEventListener('click', () => openFile(it.path));
-        container.appendChild(fileDiv);
+      // if it's a single file (maybe direct path) -> auto open?
+      if (!Array.isArray(items) && items.type === 'file') {
+        // open file automatically
+        openFile(items.path);
+        // also show in dir as link
+        renderFileItems([items]);
+      } else {
+        renderFileItems(arr);
       }
-    });
-
-    directoryView.appendChild(container);
-    dirPlaceholder?.remove(); // placeholder hidden
+    } catch (err) {
+      directoryView.innerHTML = `<span class="text-danger">❌ error: ${err.message}</span>`;
+    }
   }
 
-  // ---------- openFile (editor) ----------
+  function renderFileItems(items) {
+    const panel = directoryView;
+    panel.innerHTML = '';
+
+    items.forEach(it => {
+      if (it.type === 'dir') {
+        // folder: use details/summary bootstrap style
+        const details = document.createElement('div');
+        details.className = 'border rounded-3 mb-2 p-2 bg-white';
+        const summary = document.createElement('div');
+        summary.className = 'd-flex align-items-center folder-summary fw-semibold';
+        summary.innerHTML = `<i class="bi bi-folder-fill text-warning me-2"></i>${it.path} `;
+        summary.setAttribute('data-path', it.path);
+        summary.style.cursor = 'pointer';
+
+        const childContainer = document.createElement('div');
+        childContainer.className = 'mt-2 ps-3 d-none';
+        summary.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!childContainer.classList.contains('d-none')) {
+            childContainer.classList.add('d-none');
+            return;
+          }
+          // fetch children
+          try {
+            const ref = branchInput.value.trim();
+            const qp = new URLSearchParams({ owner, repo: selectedRepo, path: it.path });
+            if (ref) qp.set('ref', ref);
+            const sub = await fetchJSON(`/api/contents?${qp.toString()}`);
+            const listDiv = document.createElement('div');
+            listDiv.className = 'list-group list-group-flush small';
+            (Array.isArray(sub) ? sub : [sub]).forEach(child => {
+              const itemDiv = document.createElement('div');
+              itemDiv.className = 'list-group-item d-flex align-items-center py-1 px-2 border-0 file-item';
+              if (child.type === 'file') {
+                itemDiv.innerHTML = `<i class="bi bi-file-earmark text-secondary me-2"></i><a href="#" class="text-decoration-none flex-grow-1">${child.name}</a>`;
+                const a = itemDiv.querySelector('a');
+                a.onclick = (ev) => { ev.preventDefault(); openFile(child.path); };
+                // add inline copy raw link
+                const rawBtn = document.createElement('button');
+                rawBtn.className = 'btn btn-sm btn-link py-0 px-1';
+                rawBtn.innerHTML = '<i class="bi bi-link-45deg"></i>';
+                rawBtn.title = 'copy raw url';
+                rawBtn.onclick = (e) => { e.stopPropagation(); copyRawUrlForPath(child.path); };
+                itemDiv.appendChild(rawBtn);
+              } else {
+                itemDiv.innerHTML = `<i class="bi bi-folder text-warning me-2"></i>${child.path} (folder)`;
+              }
+              listDiv.appendChild(itemDiv);
+            });
+            childContainer.innerHTML = '';
+            childContainer.appendChild(listDiv);
+            childContainer.classList.remove('d-none');
+          } catch (e) {
+            childContainer.innerHTML = `<span class="text-danger">error</span>`;
+            childContainer.classList.remove('d-none');
+          }
+        });
+        details.appendChild(summary);
+        details.appendChild(childContainer);
+        panel.appendChild(details);
+      } else if (it.type === 'file') {
+        const fileRow = document.createElement('div');
+        fileRow.className = 'd-flex align-items-center justify-content-between mb-1 p-1 bg-white rounded border file-item';
+        fileRow.innerHTML = `<span><i class="bi bi-file-earmark-code me-2 text-primary"></i><a href="#" class="text-decoration-none">${it.path}</a></span>`;
+        const btnGroup = document.createElement('span');
+        btnGroup.className = 'btn-group btn-group-sm';
+
+        const rawCopyBtn = document.createElement('button');
+        rawCopyBtn.className = 'btn btn-outline-secondary border-0';
+        rawCopyBtn.innerHTML = '<i class="bi bi-link"></i>';
+        rawCopyBtn.title = 'copy raw url';
+        rawCopyBtn.onclick = (e) => { e.stopPropagation(); copyRawUrlForPath(it.path); };
+
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'btn btn-outline-secondary border-0';
+        dlBtn.innerHTML = '<i class="bi bi-download"></i>';
+        dlBtn.title = 'download file';
+        dlBtn.onclick = (e) => { e.stopPropagation(); triggerDownload(it.path); };
+
+        btnGroup.appendChild(rawCopyBtn);
+        btnGroup.appendChild(dlBtn);
+        fileRow.appendChild(btnGroup);
+
+        const link = fileRow.querySelector('a');
+        link.onclick = (e) => { e.preventDefault(); openFile(it.path); };
+        panel.appendChild(fileRow);
+      }
+    });
+  }
+
+  // helper: copy raw url for any file (without opening)
+  function copyRawUrlForPath(filePath) {
+    if (!owner || !selectedRepo) return;
+    const ref = branchInput.value.trim() || 'main';
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${selectedRepo}/${ref}/${filePath}`;
+    navigator.clipboard?.writeText(rawUrl).then(() => statusDiv.textContent = '✓ raw url copied');
+  }
+
+  // trigger download by simulating raw fetch (just copies raw url actually, but we can later)
+  function triggerDownload(filePath) {
+    copyRawUrlForPath(filePath); // for simplicity just copy raw url to clipboard and notify
+    statusDiv.textContent = 'raw url copied, use to download';
+  }
+
+  // open file
   async function openFile(path) {
-    if (!owner || !selectedRepo) { alert('Repo missing'); return; }
     const ref = branchInput.value.trim();
     const qp = new URLSearchParams({ owner, repo: selectedRepo, path });
     if (ref) qp.set('ref', ref);
-
     try {
       const file = await fetchJSON(`/api/file?${qp.toString()}`);
       currentFileSha = file.sha;
       currentFilePath = path;
-      fileTitle.textContent = `${path}`;
-      fileShaBadge.textContent = `sha: ${file.sha.substring(0,7)}`;
-      editor.value = file.content || '';
+      currentFileContent = file.content || '';
+      fileTitle.innerHTML = `<i class="bi bi-file-earmark"></i> ${path}`;
+      editor.value = currentFileContent;
       editorPanel.hidden = false;
-      statusDiv.innerHTML = '';
-    } catch (err) {
-      alert('Error opening file: ' + err.message);
+      statusDiv.textContent = '';
+
+      // update meta dataset
+      currentFileMeta.dataset.path = path;
+      currentFileMeta.dataset.sha = file.sha;
+    } catch (e) {
+      alert('cannot open file: ' + e.message);
     }
   }
 
-  // ---------- save file (button) ----------
-  saveBtn.onclick = async () => {
-    if (!owner || !selectedRepo || !currentFilePath) {
-      statusDiv.innerHTML = '<span class="text-danger">no file selected</span>';
-      return;
-    }
+  // save file
+  async function saveFile() {
     const content = editor.value;
     const message = commitMsg.value.trim() || `Update ${currentFilePath}`;
     const branch = branchInput.value.trim();
@@ -412,60 +407,84 @@
 
     try {
       const resp = await fetchJSON('/api/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      statusDiv.innerHTML = `✅ Saved – commit: ${resp.commit?.sha?.substring(0,7) || ''}`;
-      if (resp.content?.sha) currentFileSha = resp.content.sha;
-      fileShaBadge.textContent = `sha: ${currentFileSha?.substring(0,7)}`;
-    } catch (e) {
-      statusDiv.innerHTML = `❌ save failed: ${e.message}`;
+      statusDiv.innerHTML = `<span class="text-success">✅ Saved. commit: ${resp.commit?.sha?.substring(0,7) || ''}</span>`;
+      currentFileSha = resp.content?.sha || currentFileSha;
+    } catch (err) {
+      statusDiv.innerHTML = `<span class="text-danger">❌ save failed: ${err.message}</span>`;
     }
-  };
+  }
 
-  // ---------- delete file (button) ----------
-  deleteBtn.onclick = async () => {
-    if (!owner || !selectedRepo || !currentFilePath) {
-      statusDiv.innerHTML = 'no file selected';
-      return;
-    }
-    if (!confirm(`Delete ${currentFilePath}?`)) return;
+  // delete file
+  async function delFile() {
+    if (!confirm(`Delete ${currentFilePath} ?`)) return;
     const message = commitMsg.value.trim() || `Delete ${currentFilePath}`;
-    const branch = branchInput.value.trim();
-
     try {
       const resp = await fetchJSON('/api/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner, repo: selectedRepo, path: currentFilePath, sha: currentFileSha, message, branch })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner, repo: selectedRepo, path: currentFilePath, sha: currentFileSha, message })
       });
-      statusDiv.innerHTML = `🗑️ Deleted – commit ${resp.commit?.sha?.substring(0,7)}`;
-      editorPanel.hidden = true;   // hide after delete
-      currentFileSha = null;
-      // refresh current directory view
-      browseBtn.click();
-    } catch (e) {
-      statusDiv.innerHTML = `delete error: ${e.message}`;
+      statusDiv.innerHTML = `<span class="text-success">🗑️ Deleted commit ${resp.commit?.sha?.substring(0,7) || ''}</span>`;
+      editorPanel.hidden = true;
+    } catch (err) {
+      statusDiv.innerHTML = `<span class="text-danger">delete error: ${err.message}</span>`;
     }
+  }
+
+  // raw link button (for current selected file in editor)
+  rawFileLinkBtn.onclick = () => {
+    if (!owner || !selectedRepo || !currentFilePath) { alert('no file open'); return; }
+    const ref = branchInput.value.trim() || 'main';
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${selectedRepo}/${ref}/${currentFilePath}`;
+    navigator.clipboard?.writeText(rawUrl).then(() => statusDiv.textContent = '✓ raw url copied (editor)');
   };
 
-  // on load: populate repos, set badge, attach extra ui
+  // raw link from browse row (uses path input? we can use current selection)
+  rawLinkBtn.onclick = () => {
+    if (!owner || !selectedRepo) { alert('select repo'); return; }
+    const path = pathInput.value.trim() || '';
+    if (!path) { alert('enter a file path in the path field'); return; }
+    const ref = branchInput.value.trim() || 'main';
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${selectedRepo}/${ref}/${path}`;
+    navigator.clipboard?.writeText(rawUrl).then(() => statusDiv.textContent = '✓ raw url from path copied');
+  };
+
+  // download file (from editor) -> copy raw url, but we can also offer
+  downloadFileBtn.onclick = () => {
+    if (!currentFilePath) return;
+    copyRawUrlForPath(currentFilePath);
+    statusDiv.textContent = 'raw url copied (use to download)';
+  };
+
+  // copy raw content from editor
+  copyRawContentBtn.onclick = () => {
+    navigator.clipboard?.writeText(editor.value).then(() => statusDiv.textContent = '✓ file content copied');
+  };
+
+  // cancel editor
+  cancelEditorBtn.onclick = () => {
+    editorPanel.hidden = true;
+    statusDiv.textContent = '';
+  };
+
+  // attach main actions
+  browseBtn.onclick = browse;
+  saveBtn.onclick = saveFile;
+  deleteBtn.onclick = delFile;
+
+  // copy folder list (demo)
+  copyFolderListBtn.onclick = () => {
+    statusDiv.textContent = 'demo: folder list copy';
+  };
+
+  // initial load
   loadRepos();
-
-  // extra: if click on repo badge? just informative.
-
-  // handle enter key? not needed, all clicks.
-  // ensure that any initial placeholder is click-friendly
-  // Also handle optional direct file open after delete etc.
-
-  // tooltip: show selected repo
 })();
 </script>
 
-<!-- optional footer note -->
-<footer class="text-center small text-secondary mt-2">
-  <i class="bi bi-github"></i> GitHub Repo Editor – all actions via buttons & clicks
-</footer>
+<!-- optional: include bootstrap JS for proper toggles (not strictly needed) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
