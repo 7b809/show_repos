@@ -1,249 +1,471 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>GitHub Repo Editor</title>
-
-  <!-- Bootstrap 5 CSS -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GitHub Repo Editor · Bootstrap</title>
+  <!-- Bootstrap 5 + Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    /* smooth interactions, pointer for clickable items */
+    .repo-option, .file-item, .dir-summary {
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .repo-option:hover, .file-item:hover, .dir-summary:hover {
+      background-color: #e9ecef;
+    }
+    .file-item .bi, .dir-summary .bi {
+      margin-right: 0.5rem;
+    }
+    #repoSelect option {
+      padding: 6px 8px;
+      border-bottom: 1px solid #f1f3f5;
+    }
+    /* directory tree compact style */
+    .dir-details {
+      background: #f8fafc;
+      border-radius: 0.5rem;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem 0.75rem;
+    }
+    .sub-list {
+      list-style: none;
+      padding-left: 1.5rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .sub-list li {
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.375rem;
+    }
+    .sub-list li a {
+      text-decoration: none;
+      color: #0d6efd;
+      font-weight: 500;
+    }
+    .sub-list li a:hover {
+      text-decoration: underline;
+    }
+    .btn-icon-label i {
+      margin-right: 0.25rem;
+    }
+    /* responsive tweaks */
+    @media (max-width: 768px) {
+      .container-fluid { padding: 0.5rem; }
+    }
+  </style>
 </head>
-
-<body class="bg-light">
+<body class="bg-light min-vh-100 d-flex align-items-start">
 
 <div class="container-fluid py-4">
-  <div class="row shadow rounded bg-white overflow-hidden">
+  <div class="row g-0 shadow-lg rounded-4 overflow-hidden bg-white border">
 
-    <!-- LEFT PANEL -->
-    <aside class="col-md-3 border-end p-4 bg-white">
-      <h4 class="mb-3 text-primary">Repositories</h4>
+    <!-- ========== LEFT PANEL – REPO LIST ========== -->
+    <aside class="col-md-3 col-lg-3 border-end p-0 bg-white">
+      <div class="p-4">
+        <h4 class="mb-3 text-primary d-flex align-items-center">
+          <i class="bi bi-github me-2"></i>Repositories
+        </h4>
+        <!-- repo select list with scroll -->
+        <select id="repoSelect" size="12" class="form-select mb-3 border-0 ps-0" style="background-color: transparent; overflow-y: auto;">
+          <!-- populated via JS -->
+        </select>
 
-      <select id="repoSelect" size="12" class="form-select mb-3"></select>
-
-      <div class="d-flex justify-content-between align-items-center">
-        <button id="prevPage" class="btn btn-outline-secondary btn-sm">Prev</button>
-        <span id="pageLabel" class="fw-bold"></span>
-        <button id="nextPage" class="btn btn-outline-secondary btn-sm">Next</button>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <button id="prevPage" class="btn btn-outline-secondary btn-sm px-3"><i class="bi bi-chevron-left"></i> Prev</button>
+          <span id="pageLabel" class="fw-semibold text-dark">Page 1</span>
+          <button id="nextPage" class="btn btn-outline-secondary btn-sm px-3">Next <i class="bi bi-chevron-right"></i></button>
+        </div>
+        <div class="mt-2 small text-muted text-center">click repo → browse</div>
       </div>
     </aside>
 
-    <!-- RIGHT PANEL -->
-    <main class="col-md-9 p-4">
+    <!-- ========== RIGHT PANEL – BROWSER + EDITOR ========== -->
+    <main class="col-md-9 col-lg-9 p-4 bg-white">
 
-      <!-- Controls -->
-      <div class="card shadow-sm mb-4">
+      <!-- browse controls card -->
+      <div class="card border-0 shadow-sm mb-4 bg-light">
         <div class="card-body">
           <div class="row g-3 align-items-end">
-
             <div class="col-md-5">
-              <label class="form-label">Path</label>
-              <input id="pathInput" class="form-control"
-                     placeholder="(blank)=root or e.g. src/" />
+              <label class="form-label fw-semibold"><i class="bi bi-folder2-open me-1"></i>Path</label>
+              <input id="pathInput" class="form-control form-control-sm" placeholder="blank = root, e.g. src/">
             </div>
-
             <div class="col-md-3">
-              <label class="form-label">Branch</label>
-              <input id="branchInput" class="form-control"
-                     placeholder="(optional) e.g. main" />
+              <label class="form-label fw-semibold"><i class="bi bi-code-branch me-1"></i>Branch</label>
+              <input id="branchInput" class="form-control form-control-sm" placeholder="main (optional)">
             </div>
-
             <div class="col-md-2">
-              <button id="browseBtn" class="btn btn-primary w-100">
-                Browse
+              <button id="browseBtn" class="btn btn-primary w-100 btn-sm">
+                <i class="bi bi-search"></i> Browse
               </button>
             </div>
-
+            <div class="col-md-2 text-md-end">
+              <span class="badge bg-secondary" id="selectedRepoBadge">none</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Directory View -->
-      <div id="directoryView" class="card shadow-sm mb-4 p-3 bg-light rounded"></div>
-
-      <!-- Editor Panel -->
-      <div id="editorPanel" class="card shadow-sm" hidden>
-        <div class="card-header bg-primary text-white">
-          <h5 id="fileTitle" class="mb-0"></h5>
+      <!-- Directory view card (dynamic) -->
+      <div id="directoryView" class="card border-0 shadow-sm mb-4 p-3 bg-white" style="min-height: 120px;">
+        <div class="text-muted fst-italic small" id="dirPlaceholder">
+          <i class="bi bi-arrow-up-circle me-1"></i> Select a repository, then click Browse
         </div>
+      </div>
 
+      <!-- Editor panel card (initially hidden) -->
+      <div id="editorPanel" class="card border-0 shadow-lg" hidden>
+        <div class="card-header bg-primary text-white d-flex align-items-center">
+          <i class="bi bi-file-earmark-code me-2"></i>
+          <h5 id="fileTitle" class="mb-0 flex-grow-1"></h5>
+          <span class="badge bg-light text-dark" id="fileShaBadge"></span>
+        </div>
         <div class="card-body">
-          <textarea id="editor"
-                    class="form-control mb-3"
-                    rows="15"
-                    spellcheck="false"
-                    style="font-family: monospace;"></textarea>
+          <textarea id="editor" class="form-control font-monospace mb-3" rows="12" spellcheck="false" placeholder="file content ..."></textarea>
 
-          <div class="row g-2 align-items-center">
+          <div class="row g-3 align-items-center">
             <div class="col-md-6">
-              <input id="commitMsg"
-                     class="form-control"
-                     placeholder="Commit message" />
+              <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-pencil-square"></i></span>
+                <input id="commitMsg" class="form-control" placeholder="Commit message (auto if empty)">
+              </div>
             </div>
-
             <div class="col-md-3">
-              <button id="saveBtn" class="btn btn-success w-100">
-                Save
-              </button>
+              <button id="saveBtn" class="btn btn-success w-100"><i class="bi bi-check-circle"></i> Save</button>
             </div>
-
             <div class="col-md-3">
-              <button id="deleteBtn" class="btn btn-danger w-100">
-                Delete
-              </button>
+              <button id="deleteBtn" class="btn btn-outline-danger w-100"><i class="bi bi-trash3"></i> Delete</button>
             </div>
           </div>
 
-          <div class="mt-3">
-            <small id="status" class="text-muted"></small>
+          <div class="mt-3 d-flex align-items-center">
+            <i class="bi bi-info-circle text-secondary me-2"></i>
+            <small id="status" class="text-secondary"></small>
           </div>
         </div>
       </div>
 
+      <!-- subtle hint -->
+      <div class="text-end small text-secondary mt-2">
+        <i class="bi bi-mouse"></i> click files to edit
+      </div>
     </main>
   </div>
 </div>
 
-
 <script>
-let page = 1, selectedRepo = null, currentFileSha = null, owner = null;
+(function() {
+  // ---------- state ----------
+  let page = 1;
+  let selectedRepo = null;
+  let currentFileSha = null;
+  let owner = null;
+  let currentFilePath = '';   // for ui consistency
 
-async function fetchJSON(url, opts={}) {
-  const r = await fetch(url, opts);
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
+  // ---------- DOM references ----------
+  const repoSelectEl = document.getElementById('repoSelect');
+  const prevBtn = document.getElementById('prevPage');
+  const nextBtn = document.getElementById('nextPage');
+  const pageLabel = document.getElementById('pageLabel');
+  const browseBtn = document.getElementById('browseBtn');
+  const pathInput = document.getElementById('pathInput');
+  const branchInput = document.getElementById('branchInput');
+  const directoryView = document.getElementById('directoryView');
+  const dirPlaceholder = document.getElementById('dirPlaceholder');
+  const editorPanel = document.getElementById('editorPanel');
+  const fileTitle = document.getElementById('fileTitle');
+  const fileShaBadge = document.getElementById('fileShaBadge');
+  const editor = document.getElementById('editor');
+  const commitMsg = document.getElementById('commitMsg');
+  const statusDiv = document.getElementById('status');
+  const saveBtn = document.getElementById('saveBtn');
+  const deleteBtn = document.getElementById('deleteBtn');
+  const selectedRepoBadge = document.getElementById('selectedRepoBadge');
 
-async function loadRepos() {
-  document.getElementById('pageLabel').textContent = `Page ${page}`;
-  const repos = await fetchJSON(`/api/repos?page=${page}`);
-  const el = document.getElementById('repoSelect');
-  el.innerHTML = '';
-  repos.forEach(repo => {
-    const opt = document.createElement('option');
-    opt.value = repo.name;
-    opt.textContent = `${repo.full_name}`;
-    opt.dataset.owner = repo.owner.login;
-    el.appendChild(opt);
-  });
-}
+  // ---------- API mocks (keeping same fetchJSON) ----------
+  async function fetchJSON(url, opts = {}) {
+    const r = await fetch(url, opts);
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
 
-document.getElementById('prevPage').onclick = () => { if (page>1){page--; loadRepos();}};
-document.getElementById('nextPage').onclick = () => { page++; loadRepos();};
-
-document.getElementById('repoSelect').onchange = (e) => {
-  const opt = e.target.selectedOptions[0];
-  if (!opt) return;
-  selectedRepo = opt.value;
-  owner = opt.dataset.owner;
-  document.getElementById('directoryView').innerHTML = '';
-  document.getElementById('editorPanel').hidden = true;
-};
-
-async function browse() {
-  const path = document.getElementById('pathInput').value.trim();
-  const ref = document.getElementById('branchInput').value.trim();
-  if (!owner || !selectedRepo) return alert('Select a repository first.');
-
-  const qp = new URLSearchParams({ owner, repo: selectedRepo });
-  if (path) qp.set('path', path);
-  if (ref) qp.set('ref', ref);
-
-  const items = await fetchJSON(`/api/contents?${qp.toString()}`);
-  const panel = document.getElementById('directoryView');
-  panel.innerHTML = '';
-
-  const arr = Array.isArray(items) ? items : [items];
-  arr.forEach(it => {
-    if (it.type === 'dir') {
-      const details = document.createElement('details');
-      details.classList.add("mb-2");
-
-      const summary = document.createElement('summary');
-      summary.textContent = `📁 ${it.path}`;
-      summary.classList.add("fw-bold");
-      details.appendChild(summary);
-
-      summary.onclick = async () => {
-        const sub = await fetchJSON(`/api/contents?owner=${owner}&repo=${selectedRepo}&path=${encodeURIComponent(it.path)}${ref?`&ref=${encodeURIComponent(ref)}`:''}`);
-        const list = document.createElement('ul');
-        list.classList.add("list-group", "mt-2");
-
-        (Array.isArray(sub)?sub:[sub]).forEach(child => {
-          const li = document.createElement('li');
-          li.classList.add("list-group-item");
-
-          if (child.type === 'file') {
-            const a = document.createElement('a');
-            a.href = '#';
-            a.textContent = `📝 ${child.name}`;
-            a.onclick = () => openFile(child.path);
-            li.appendChild(a);
-          } else {
-            li.textContent = `📁 ${child.path}`;
-          }
-          list.appendChild(li);
+  // ---------- load repos + update UI ----------
+  async function loadRepos() {
+    pageLabel.textContent = `Page ${page}`;
+    try {
+      const repos = await fetchJSON(`/api/repos?page=${page}`);
+      repoSelectEl.innerHTML = '';
+      if (!repos || repos.length === 0) {
+        const opt = document.createElement('option');
+        opt.textContent = '— no repos —';
+        opt.disabled = true;
+        repoSelectEl.appendChild(opt);
+      } else {
+        repos.forEach(repo => {
+          const opt = document.createElement('option');
+          opt.value = repo.name;
+          opt.textContent = `${repo.full_name}`;
+          opt.dataset.owner = repo.owner.login;
+          repoSelectEl.appendChild(opt);
         });
-        details.replaceChildren(summary, list);
-      };
+      }
+      // reset selection UI
+      selectedRepo = null;
+      owner = null;
+      selectedRepoBadge.textContent = 'none';
+    } catch (e) {
+      showTemporaryStatus('Failed to load repos', 'danger');
+    }
+  }
 
-      panel.appendChild(details);
-    } else if (it.type === 'file') {
-      const a = document.createElement('a');
-      a.href = '#';
-      a.classList.add("d-block", "mb-1");
-      a.textContent = `📝 ${it.path}`;
-      a.onclick = () => openFile(it.path);
-      panel.appendChild(a);
+  // helper for inline status (right panel)
+  function showTemporaryStatus(msg, type = 'secondary', timeout = 3000) {
+    const statusSpan = document.getElementById('status'); // we reuse bottom status
+    if (statusSpan) {
+      statusSpan.innerHTML = `<span class="text-${type}">${msg}</span>`;
+      if (timeout) setTimeout(() => { statusSpan.innerHTML = ''; }, timeout);
+    } else alert(msg);
+  }
+
+  // ---------- repo select change (manual click) ----------
+  repoSelectEl.addEventListener('change', (e) => {
+    const opt = e.target.selectedOptions[0];
+    if (!opt || opt.disabled) return;
+    selectedRepo = opt.value;
+    owner = opt.dataset.owner;
+    selectedRepoBadge.textContent = `${owner}/${selectedRepo}`;
+    // reset directory and editor panel
+    directoryView.innerHTML = `<div class="text-muted fst-italic"><i class="bi bi-hand-index-thumb"></i> Ready. Click Browse to see contents.</div>`;
+    editorPanel.hidden = true;
+    currentFileSha = null;
+    fileShaBadge.textContent = '';
+  });
+
+  // pagination buttons
+  prevBtn.addEventListener('click', () => {
+    if (page > 1) { page--; loadRepos(); }
+  });
+  nextBtn.addEventListener('click', () => {
+    page++; loadRepos();
+  });
+
+  // ---------- BROWSE button – main directory listing (button-wise) ----------
+  browseBtn.addEventListener('click', async () => {
+    if (!owner || !selectedRepo) {
+      alert('Please select a repository from the left panel.');
+      return;
+    }
+
+    const path = pathInput.value.trim();
+    const ref = branchInput.value.trim();
+
+    const qp = new URLSearchParams({ owner, repo: selectedRepo });
+    if (path) qp.set('path', path);
+    if (ref) qp.set('ref', ref);
+
+    try {
+      const items = await fetchJSON(`/api/contents?${qp.toString()}`);
+      renderDirectoryView(items, path, ref);
+      editorPanel.hidden = true;         // hide editor when browsing
+      statusDiv.innerHTML = '';           // clear status
+    } catch (err) {
+      directoryView.innerHTML = `<div class="alert alert-warning mb-0">⚠️ Error: ${err.message}</div>`;
     }
   });
-}
 
-async function openFile(path) {
-  const ref = document.getElementById('branchInput').value.trim();
-  const qp = new URLSearchParams({ owner, repo: selectedRepo, path });
-  if (ref) qp.set('ref', ref);
+  // ---------- render directory (interactive click layout) ----------
+  function renderDirectoryView(items, currentPath, ref) {
+    directoryView.innerHTML = '';  // clear
 
-  const file = await fetchJSON(`/api/file?${qp.toString()}`);
-  currentFileSha = file.sha;
-  document.getElementById('fileTitle').textContent = `${path}`;
-  document.getElementById('editor').value = file.content || '';
-  document.getElementById('editorPanel').hidden = false;
-  document.getElementById('status').textContent = '';
-  document.getElementById('deleteBtn').onclick = () => delFile(path);
-  document.getElementById('saveBtn').onclick = () => saveFile(path);
-}
+    if (!items || (Array.isArray(items) && items.length === 0)) {
+      directoryView.innerHTML = '<div class="text-muted">📂 Empty directory</div>';
+      return;
+    }
 
-async function saveFile(path) {
-  const content = document.getElementById('editor').value;
-  const message = document.getElementById('commitMsg').value || `Update ${path}`;
-  const branch = document.getElementById('branchInput').value.trim();
+    // Normalize to array
+    const arr = Array.isArray(items) ? items : [items];
+    const container = document.createElement('div');
+    container.classList.add('dir-listing');
 
-  const body = { owner, repo: selectedRepo, path, content, message };
-  if (currentFileSha) body.sha = currentFileSha;
-  if (branch) body.branch = branch;
+    // optional parent link (if not root)
+    if (currentPath && currentPath.includes('/')) {
+      const parentLink = document.createElement('div');
+      parentLink.className = 'mb-2 p-1 bg-light rounded';
+      parentLink.innerHTML = `<i class="bi bi-arrow-up-short"></i> <a href="#" class="parent-dir-link">.. (parent)</a>`;
+      parentLink.querySelector('a').addEventListener('click', (e) => {
+        e.preventDefault();
+        const parent = currentPath.split('/').slice(0, -1).join('/') || '';
+        pathInput.value = parent;
+        browseBtn.click();  // trigger browse again
+      });
+      container.appendChild(parentLink);
+    }
 
-  const resp = await fetchJSON(`/api/save`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  document.getElementById('status').textContent = `Saved: ${resp.commit && resp.commit.sha ? resp.commit.sha : ''}`;
-  currentFileSha = resp.content && resp.content.sha ? resp.content.sha : currentFileSha;
-}
+    // create cards / interactive items
+    arr.forEach(it => {
+      if (it.type === 'dir') {
+        const dirCard = document.createElement('div');
+        dirCard.className = 'dir-details border';
+        // summary line with folder icon – click toggles sub list
+        const summary = document.createElement('div');
+        summary.className = 'dir-summary d-flex align-items-center fw-semibold';
+        summary.innerHTML = `<i class="bi bi-folder-fill text-warning me-2"></i> ${it.path}  <span class="ms-auto badge bg-info bg-opacity-10 text-dark">folder</span>`;
+        summary.setAttribute('data-path', it.path);
+        summary.setAttribute('role', 'button');
 
-async function delFile(path) {
-  if (!confirm(`Delete ${path}?`)) return;
-  const message = document.getElementById('commitMsg').value || `Delete ${path}`;
-  const resp = await fetchJSON(`/api/delete`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ owner, repo: selectedRepo, path, sha: currentFileSha, message })
-  });
-  document.getElementById('status').textContent = `Deleted in commit ${resp.commit && resp.commit.sha ? resp.commit.sha : ''}`;
-}
+        const subContainer = document.createElement('div');
+        subContainer.className = 'sub-container mt-1';
+        subContainer.style.display = 'none'; // hidden initially, expand on click
 
-document.getElementById('browseBtn').onclick = browse;
-loadRepos();
+        // attach click to summary -> load subfolder via API (button-wise)
+        summary.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          // if already expanded and loaded, you could toggle – but here we fetch fresh each time.
+          // for simplicity we always fetch sub contents
+          const subPath = summary.dataset.path;
+          const ref = branchInput.value.trim();
+          try {
+            const subItems = await fetchJSON(`/api/contents?owner=${owner}&repo=${selectedRepo}&path=${encodeURIComponent(subPath)}${ref ? `&ref=${encodeURIComponent(ref)}` : ''}`);
+            // build a nice list
+            subContainer.innerHTML = ''; // clear
+            const list = document.createElement('ul');
+            list.className = 'sub-list';
+            const subArr = Array.isArray(subItems) ? subItems : [subItems];
+            subArr.forEach(child => {
+              const li = document.createElement('li');
+              if (child.type === 'file') {
+                li.innerHTML = `<i class="bi bi-file-earmark-text text-secondary me-2"></i><a href="#" class="file-open-link" data-path="${child.path}">${child.name}</a>`;
+                // attach click to open file
+                li.querySelector('.file-open-link').addEventListener('click', (e) => {
+                  e.preventDefault();
+                  openFile(child.path);
+                });
+              } else {
+                li.innerHTML = `<i class="bi bi-folder text-warning me-2"></i>${child.path} (folder)`;
+              }
+              list.appendChild(li);
+            });
+            subContainer.appendChild(list);
+            subContainer.style.display = subContainer.style.display === 'none' ? 'block' : 'none';
+          } catch (error) {
+            subContainer.innerHTML = `<div class="text-danger small">failed to load</div>`;
+            subContainer.style.display = 'block';
+          }
+        });
+
+        dirCard.appendChild(summary);
+        dirCard.appendChild(subContainer);
+        container.appendChild(dirCard);
+
+      } else if (it.type === 'file') {
+        // file item – click to open
+        const fileDiv = document.createElement('div');
+        fileDiv.className = 'file-item d-flex align-items-center p-2 mb-1 bg-white border rounded';
+        fileDiv.innerHTML = `<i class="bi bi-file-earmark-text text-primary me-2"></i> <span class="flex-grow-1">${it.path}</span> <i class="bi bi-pencil-square text-secondary"></i>`;
+        fileDiv.setAttribute('data-path', it.path);
+        fileDiv.addEventListener('click', () => openFile(it.path));
+        container.appendChild(fileDiv);
+      }
+    });
+
+    directoryView.appendChild(container);
+    dirPlaceholder?.remove(); // placeholder hidden
+  }
+
+  // ---------- openFile (editor) ----------
+  async function openFile(path) {
+    if (!owner || !selectedRepo) { alert('Repo missing'); return; }
+    const ref = branchInput.value.trim();
+    const qp = new URLSearchParams({ owner, repo: selectedRepo, path });
+    if (ref) qp.set('ref', ref);
+
+    try {
+      const file = await fetchJSON(`/api/file?${qp.toString()}`);
+      currentFileSha = file.sha;
+      currentFilePath = path;
+      fileTitle.textContent = `${path}`;
+      fileShaBadge.textContent = `sha: ${file.sha.substring(0,7)}`;
+      editor.value = file.content || '';
+      editorPanel.hidden = false;
+      statusDiv.innerHTML = '';
+    } catch (err) {
+      alert('Error opening file: ' + err.message);
+    }
+  }
+
+  // ---------- save file (button) ----------
+  saveBtn.onclick = async () => {
+    if (!owner || !selectedRepo || !currentFilePath) {
+      statusDiv.innerHTML = '<span class="text-danger">no file selected</span>';
+      return;
+    }
+    const content = editor.value;
+    const message = commitMsg.value.trim() || `Update ${currentFilePath}`;
+    const branch = branchInput.value.trim();
+
+    const body = { owner, repo: selectedRepo, path: currentFilePath, content, message };
+    if (currentFileSha) body.sha = currentFileSha;
+    if (branch) body.branch = branch;
+
+    try {
+      const resp = await fetchJSON('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      statusDiv.innerHTML = `✅ Saved – commit: ${resp.commit?.sha?.substring(0,7) || ''}`;
+      if (resp.content?.sha) currentFileSha = resp.content.sha;
+      fileShaBadge.textContent = `sha: ${currentFileSha?.substring(0,7)}`;
+    } catch (e) {
+      statusDiv.innerHTML = `❌ save failed: ${e.message}`;
+    }
+  };
+
+  // ---------- delete file (button) ----------
+  deleteBtn.onclick = async () => {
+    if (!owner || !selectedRepo || !currentFilePath) {
+      statusDiv.innerHTML = 'no file selected';
+      return;
+    }
+    if (!confirm(`Delete ${currentFilePath}?`)) return;
+    const message = commitMsg.value.trim() || `Delete ${currentFilePath}`;
+    const branch = branchInput.value.trim();
+
+    try {
+      const resp = await fetchJSON('/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner, repo: selectedRepo, path: currentFilePath, sha: currentFileSha, message, branch })
+      });
+      statusDiv.innerHTML = `🗑️ Deleted – commit ${resp.commit?.sha?.substring(0,7)}`;
+      editorPanel.hidden = true;   // hide after delete
+      currentFileSha = null;
+      // refresh current directory view
+      browseBtn.click();
+    } catch (e) {
+      statusDiv.innerHTML = `delete error: ${e.message}`;
+    }
+  };
+
+  // on load: populate repos, set badge, attach extra ui
+  loadRepos();
+
+  // extra: if click on repo badge? just informative.
+
+  // handle enter key? not needed, all clicks.
+  // ensure that any initial placeholder is click-friendly
+  // Also handle optional direct file open after delete etc.
+
+  // tooltip: show selected repo
+})();
 </script>
 
+<!-- optional footer note -->
+<footer class="text-center small text-secondary mt-2">
+  <i class="bi bi-github"></i> GitHub Repo Editor – all actions via buttons & clicks
+</footer>
 </body>
 </html>
