@@ -15,7 +15,6 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
 def gh_headers():
     if not GITHUB_TOKEN:
-        # Helpful error for local dev if token isn't present
         raise RuntimeError("GITHUB_TOKEN environment variable is not set.")
     return {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -71,7 +70,11 @@ def get_file():
     data = r.json()
     content_b64 = data.get("content", "")
     content = base64.b64decode(content_b64).decode("utf-8", errors="replace") if content_b64 else ""
-    return jsonify({"sha": data.get("sha"), "content": content, "encoding": data.get("encoding")})
+    return jsonify({
+        "sha": data.get("sha"),
+        "content": content,
+        "encoding": data.get("encoding")
+    })
 
 
 # --- Create/Update file (CRUD: C/U) ---
@@ -116,6 +119,85 @@ def delete_file():
     return jsonify(r.json()), r.status_code
 
 
+# ==========================================================
+# 🆕 CREATE REPOSITORY
+# ==========================================================
+@app.post("/api/create-repo")
+def create_repo():
+    payload = request.get_json(force=True)
+    name = payload["name"]
+    description = payload.get("description", "")
+    private = payload.get("private", False)
+
+    body = {
+        "name": name,
+        "description": description,
+        "private": private,
+        "auto_init": True
+    }
+
+    r = requests.post(
+        f"{GITHUB_API}/user/repos",
+        headers=gh_headers(),
+        json=body,
+        timeout=30,
+    )
+    r.raise_for_status()
+    return jsonify(r.json()), r.status_code
+
+
+# ==========================================================
+# 🆕 CREATE FOLDER (via .gitkeep file)
+# ==========================================================
+@app.post("/api/create-folder")
+def create_folder():
+    payload = request.get_json(force=True)
+    owner = payload["owner"]
+    repo = payload["repo"]
+    folder_path = payload["folder"]
+    branch = payload.get("branch", "main")
+
+    path = f"{folder_path}/.gitkeep"
+
+    body = {
+        "message": f"Create folder {folder_path}",
+        "content": base64.b64encode(b"").decode("utf-8"),
+        "branch": branch
+    }
+
+    url = f"{GITHUB_API}/repos/{owner}/{repo}/contents/{path}"
+    r = requests.put(url, headers=gh_headers(), json=body, timeout=30)
+    r.raise_for_status()
+    return jsonify(r.json()), r.status_code
+
+
+# ==========================================================
+# 🆕 CREATE BRANCH
+# ==========================================================
+@app.post("/api/create-branch")
+def create_branch():
+    payload = request.get_json(force=True)
+    owner = payload["owner"]
+    repo = payload["repo"]
+    new_branch = payload["new_branch"]
+    from_branch = payload.get("from_branch", "main")
+
+    # Get base branch SHA
+    ref_url = f"{GITHUB_API}/repos/{owner}/{repo}/git/ref/heads/{from_branch}"
+    ref_resp = requests.get(ref_url, headers=gh_headers(), timeout=30)
+    ref_resp.raise_for_status()
+    sha = ref_resp.json()["object"]["sha"]
+
+    body = {
+        "ref": f"refs/heads/{new_branch}",
+        "sha": sha
+    }
+
+    create_url = f"{GITHUB_API}/repos/{owner}/{repo}/git/refs"
+    r = requests.post(create_url, headers=gh_headers(), json=body, timeout=30)
+    r.raise_for_status()
+    return jsonify(r.json()), r.status_code
+
+
 if __name__ == "__main__":
-    # For local dev only
     app.run(host="0.0.0.0", port=3000, debug=True)
