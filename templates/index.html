@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GitHub Repo Editor · enhanced</title>
-  <!-- Bootstrap 5 + icons (optional but nice) -->
+  <!-- Bootstrap 5 + icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
@@ -16,12 +16,13 @@
     .badge-copy { cursor: pointer; }
     .editor-footer { background: #f8fafc; }
     .mono { font-family: 'SF Mono', 'Fira Code', monospace; }
+    .upload-progress { height: 4px; transition: width 0.3s; }
   </style>
 </head>
 <body>
 
 <div class="container-fluid py-4 px-lg-4">
-  <!-- top header with fake "copy repo url" demo (no backend needed) -->
+  <!-- top header -->
   <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
     <h2 class="h4 fw-semibold text-dark"><i class="bi bi-github me-2"></i>GitHub editor</h2>
     <div class="d-flex gap-2">
@@ -31,7 +32,7 @@
   </div>
 
   <div class="row g-4">
-    <!-- LEFT PANEL: repositories + pagination + quick actions -->
+    <!-- LEFT PANEL: repositories + create new repo -->
     <div class="col-lg-3">
       <div class="card shadow-sm border-0 h-100">
         <div class="card-header bg-white border-0 pt-3 pb-0">
@@ -41,15 +42,40 @@
           </div>
         </div>
         <div class="card-body pt-2">
-          <select id="repoSelect" size="10" class="form-select form-select-sm repo-listbox bg-white border rounded-3"></select>
+          <select id="repoSelect" size="8" class="form-select form-select-sm repo-listbox bg-white border rounded-3 mb-2"></select>
 
-          <div class="d-flex justify-content-between align-items-center mt-3">
+          <!-- Create new repo section -->
+          <div class="accordion mt-2" id="createRepoAccordion">
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#createRepoCollapse">
+                  <i class="bi bi-plus-circle me-2"></i>Create New Repository
+                </button>
+              </h2>
+              <div id="createRepoCollapse" class="accordion-collapse collapse" data-bs-parent="#createRepoAccordion">
+                <div class="accordion-body p-2">
+                  <input type="text" class="form-control form-control-sm mb-2" id="newRepoName" placeholder="Repository name">
+                  <input type="text" class="form-control form-control-sm mb-2" id="newRepoDesc" placeholder="Description (optional)">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="newRepoPrivate">
+                    <label class="form-check-label" for="newRepoPrivate">Private repository</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="newRepoInit" checked>
+                    <label class="form-check-label" for="newRepoInit">Initialize with README</label>
+                  </div>
+                  <button class="btn btn-primary btn-sm w-100" id="createRepoBtn">Create Repository</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-2">
             <button id="prevPage" class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i> Prev</button>
             <span id="pageLabel" class="fw-semibold small">Page 1</span>
             <button id="nextPage" class="btn btn-outline-secondary btn-sm">Next <i class="bi bi-chevron-right"></i></button>
           </div>
 
-          <!-- extra copy repo full name (selected) -->
           <div class="mt-3 d-grid gap-2">
             <button class="btn btn-light btn-sm border" id="copySelectedRepoBtn"><i class="bi bi-files me-1"></i>Copy repo full name</button>
           </div>
@@ -57,31 +83,90 @@
       </div>
     </div>
 
-    <!-- RIGHT PANEL: browser + editor -->
+    <!-- RIGHT PANEL -->
     <div class="col-lg-9">
-      <!-- Controls card -->
+      <!-- Controls card with upload options -->
       <div class="card shadow-sm border-0 mb-4">
         <div class="card-body bg-white">
-          <div class="row g-3 align-items-end">
-            <div class="col-md-5">
-              <label class="form-label fw-semibold small text-secondary">Path <i class="bi bi-folder2-open"></i></label>
-              <input id="pathInput" class="form-control form-control-sm" placeholder="(blank=root) e.g. src/">
+          <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="browse-tab" data-bs-toggle="tab" data-bs-target="#browse" type="button">Browse Files</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button">Upload Files</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="zip-tab" data-bs-toggle="tab" data-bs-target="#zip" type="button">Upload ZIP</button>
+            </li>
+          </ul>
+          
+          <div class="tab-content">
+            <!-- Browse Tab -->
+            <div class="tab-pane fade show active" id="browse">
+              <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                  <label class="form-label fw-semibold small text-secondary">Path <i class="bi bi-folder2-open"></i></label>
+                  <input id="pathInput" class="form-control form-control-sm" placeholder="(blank=root) e.g. src/">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold small text-secondary">Branch / ref</label>
+                  <input id="branchInput" class="form-control form-control-sm" placeholder="e.g. main, dev">
+                </div>
+                <div class="col-md-2">
+                  <button id="browseBtn" class="btn btn-primary w-100 btn-sm"><i class="bi bi-search me-1"></i>Browse</button>
+                </div>
+                <div class="col-md-2">
+                  <button class="btn btn-outline-info w-100 btn-sm" id="rawLinkBtn"><i class="bi bi-file-earmark"></i> Raw</button>
+                </div>
+              </div>
             </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold small text-secondary">Branch / ref</label>
-              <input id="branchInput" class="form-control form-control-sm" placeholder="e.g. main, dev">
+            
+            <!-- Single File Upload Tab -->
+            <div class="tab-pane fade" id="upload">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <input type="text" class="form-control form-control-sm" id="uploadPath" placeholder="Target path (optional)">
+                </div>
+                <div class="col-md-3">
+                  <input type="text" class="form-control form-control-sm" id="uploadBranch" placeholder="Branch" value="main">
+                </div>
+                <div class="col-md-3">
+                  <input type="file" class="form-control form-control-sm" id="singleFile">
+                </div>
+                <div class="col-md-2">
+                  <button class="btn btn-success btn-sm w-100" id="uploadSingleBtn"><i class="bi bi-upload"></i> Upload</button>
+                </div>
+              </div>
             </div>
-            <div class="col-md-2">
-              <button id="browseBtn" class="btn btn-primary w-100 btn-sm"><i class="bi bi-search me-1"></i>Browse</button>
-            </div>
-            <div class="col-md-2">
-              <button class="btn btn-outline-info w-100 btn-sm" id="rawLinkBtn" title="generate raw link for selected file"><i class="bi bi-file-earmark"></i> Raw</button>
+            
+            <!-- ZIP Upload Tab -->
+            <div class="tab-pane fade" id="zip">
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <input type="text" class="form-control form-control-sm" id="zipBranch" placeholder="Branch" value="main">
+                </div>
+                <div class="col-md-5">
+                  <input type="file" class="form-control form-control-sm" id="zipFile" accept=".zip">
+                </div>
+                <div class="col-md-2">
+                  <input type="text" class="form-control form-control-sm" id="zipMessage" placeholder="Commit message">
+                </div>
+                <div class="col-md-2">
+                  <button class="btn btn-warning btn-sm w-100" id="uploadZipBtn"><i class="bi bi-file-zip"></i> Extract & Upload</button>
+                </div>
+              </div>
+              <div class="mt-2">
+                <div class="progress">
+                  <div id="uploadProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div id="uploadStatus" class="small text-muted mt-1"></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Directory view card with copy/download -->
+      <!-- Directory view card -->
       <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center pt-3">
           <span class="fw-semibold"><i class="bi bi-diagram-2 me-1"></i>Contents</span>
@@ -89,7 +174,6 @@
         </div>
         <div class="card-body">
           <div id="directoryView" class="directory-card bg-light p-3 rounded-3 border" style="max-height: 320px; overflow-y: auto;"></div>
-          <!-- copy all files button (just demo wrapper) -->
           <div class="mt-2 d-flex gap-2 flex-wrap">
             <button class="btn btn-sm btn-outline-secondary" id="copyFolderListBtn" disabled><i class="bi bi-copy"></i> copy list (demo)</button>
           </div>
@@ -120,7 +204,7 @@
               <button id="deleteBtn" class="btn btn-danger w-100 btn-sm"><i class="bi bi-trash3"></i> Delete</button>
             </div>
             <div class="col-md-2">
-              <button class="btn btn-outline-warning w-100 btn-sm" id="cancelEditorBtn" title="close editor"><i class="bi bi-x-circle"></i></button>
+              <button class="btn btn-outline-warning w-100 btn-sm" id="cancelEditorBtn"><i class="bi bi-x-circle"></i></button>
             </div>
           </div>
 
@@ -130,12 +214,23 @@
         </div>
       </div>
 
-      <!-- hidden field to store current file raw url -->
       <div id="currentFileMeta" data-path="" data-sha="" data-repo="" data-owner=""></div>
     </div>
   </div>
 </div>
 
+<!-- Toast for notifications -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+  <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header">
+      <strong class="me-auto" id="toastTitle">Notification</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body" id="toastMessage"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (function() {
   // ---------- state ----------
@@ -144,7 +239,7 @@
   let currentFileSha = null;
   let owner = null;
   let currentFilePath = null;
-  let currentFileContent = '';    // for copy/download
+  let currentFileContent = '';
   let currentBranch = '';
 
   // DOM elements
@@ -167,7 +262,7 @@
   const copyQuickRepoBtn = document.getElementById('copyQuickRepoBtn');
   const quickRepoUrl = document.getElementById('quickRepoUrl');
   const refreshReposBtn = document.getElementById('refreshReposBtn');
-  const rawLinkBtn = document.getElementById('rawLinkBtn');          // from browse row
+  const rawLinkBtn = document.getElementById('rawLinkBtn');
   const downloadFileBtn = document.getElementById('downloadFileBtn');
   const copyRawContentBtn = document.getElementById('copyRawContentBtn');
   const rawFileLinkBtn = document.getElementById('rawFileLinkBtn');
@@ -175,6 +270,39 @@
   const folderStats = document.getElementById('folderStats');
   const copyFolderListBtn = document.getElementById('copyFolderListBtn');
   const currentFileMeta = document.getElementById('currentFileMeta');
+
+  // New repo elements
+  const createRepoBtn = document.getElementById('createRepoBtn');
+  const newRepoName = document.getElementById('newRepoName');
+  const newRepoDesc = document.getElementById('newRepoDesc');
+  const newRepoPrivate = document.getElementById('newRepoPrivate');
+  const newRepoInit = document.getElementById('newRepoInit');
+
+  // Upload elements
+  const uploadSingleBtn = document.getElementById('uploadSingleBtn');
+  const singleFile = document.getElementById('singleFile');
+  const uploadPath = document.getElementById('uploadPath');
+  const uploadBranch = document.getElementById('uploadBranch');
+  const uploadZipBtn = document.getElementById('uploadZipBtn');
+  const zipFile = document.getElementById('zipFile');
+  const zipBranch = document.getElementById('zipBranch');
+  const zipMessage = document.getElementById('zipMessage');
+  const uploadProgress = document.getElementById('uploadProgress');
+  const uploadStatus = document.getElementById('uploadStatus');
+
+  // Toast
+  const toastEl = document.getElementById('liveToast');
+  const toast = new bootstrap.Toast(toastEl);
+  const toastTitle = document.getElementById('toastTitle');
+  const toastMessage = document.getElementById('toastMessage');
+
+  function showToast(title, message, type = 'info') {
+    toastTitle.textContent = title;
+    toastMessage.textContent = message;
+    toastEl.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-info');
+    toastEl.classList.add(`bg-${type}`, 'text-white');
+    toast.show();
+  }
 
   // helper fetch
   async function fetchJSON(url, opts = {}) {
@@ -219,13 +347,12 @@
     owner = opt.dataset.owner;
     directoryView.innerHTML = '<div class="text-secondary">⬆️ browse to show contents</div>';
     editorPanel.hidden = true;
-    // update meta
     currentFileMeta.dataset.repo = selectedRepo;
     currentFileMeta.dataset.owner = owner;
     statusDiv.textContent = '';
   };
 
-  // copy selected repo full name (owner/repo)
+  // copy selected repo full name
   copySelectedRepoBtn.onclick = () => {
     if (!owner || !selectedRepo) { alert('select a repo first'); return; }
     const full = `${owner}/${selectedRepo}`;
@@ -236,12 +363,156 @@
     navigator.clipboard?.writeText(quickRepoUrl.value).then(() => statusDiv.textContent = '✓ quick repo copied').catch(() => {});
   };
 
+  // ---------- Create new repository ----------
+  createRepoBtn.onclick = async () => {
+    const name = newRepoName.value.trim();
+    if (!name) {
+      showToast('Error', 'Repository name is required', 'danger');
+      return;
+    }
+
+    const data = {
+      name: name,
+      description: newRepoDesc.value.trim(),
+      private: newRepoPrivate.checked,
+      auto_init: newRepoInit.checked
+    };
+
+    try {
+      const result = await fetchJSON('/api/create-repo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      showToast('Success', `Repository ${result.full_name} created!`, 'success');
+      newRepoName.value = '';
+      newRepoDesc.value = '';
+      loadRepos(); // Refresh repo list
+      
+      // Auto-select the new repo
+      setTimeout(() => {
+        owner = result.owner.login;
+        selectedRepo = result.name;
+        quickRepoUrl.value = `${owner}/${selectedRepo}`;
+        showToast('Info', 'New repository selected', 'info');
+      }, 500);
+      
+    } catch (err) {
+      showToast('Error', 'Failed to create repository: ' + err.message, 'danger');
+    }
+  };
+
+  // ---------- Upload single file ----------
+  uploadSingleBtn.onclick = async () => {
+    if (!owner || !selectedRepo) {
+      showToast('Error', 'Select a repository first', 'danger');
+      return;
+    }
+
+    const file = singleFile.files[0];
+    if (!file) {
+      showToast('Error', 'Select a file to upload', 'danger');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('owner', owner);
+    formData.append('repo', selectedRepo);
+    formData.append('path', uploadPath.value.trim());
+    formData.append('branch', uploadBranch.value.trim() || 'main');
+    formData.append('message', `Upload ${file.name}`);
+
+    try {
+      const response = await fetch('/api/upload-file', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        showToast('Success', `File uploaded to ${result.path}`, 'success');
+        singleFile.value = ''; // Clear file input
+        // Refresh current directory if browsing same path
+        if (uploadPath.value.trim() === pathInput.value.trim()) {
+          browse();
+        }
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (err) {
+      showToast('Error', err.message, 'danger');
+    }
+  };
+
+  // ---------- Upload and extract ZIP ----------
+  uploadZipBtn.onclick = async () => {
+    if (!owner || !selectedRepo) {
+      showToast('Error', 'Select a repository first', 'danger');
+      return;
+    }
+
+    const file = zipFile.files[0];
+    if (!file) {
+      showToast('Error', 'Select a ZIP file to upload', 'danger');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('zipfile', file);
+    formData.append('owner', owner);
+    formData.append('repo', selectedRepo);
+    formData.append('branch', zipBranch.value.trim() || 'main');
+    formData.append('message', zipMessage.value.trim() || 'Upload and extract ZIP contents');
+
+    uploadProgress.style.width = '0%';
+    uploadStatus.textContent = 'Uploading and extracting...';
+
+    try {
+      const response = await fetch('/api/upload-zip', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        uploadProgress.style.width = '100%';
+        uploadStatus.textContent = result.message;
+        showToast('Success', `Processed ${result.results.success.length} files successfully`, 'success');
+        
+        if (result.results.failed.length > 0) {
+          console.warn('Failed uploads:', result.results.failed);
+          uploadStatus.textContent += ` (${result.results.failed.length} failed)`;
+        }
+        
+        zipFile.value = ''; // Clear file input
+        // Refresh current directory
+        browse();
+        
+        // Clear progress after 3 seconds
+        setTimeout(() => {
+          uploadProgress.style.width = '0%';
+          uploadStatus.textContent = '';
+        }, 3000);
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (err) {
+      uploadProgress.style.width = '0%';
+      uploadStatus.textContent = 'Upload failed';
+      showToast('Error', err.message, 'danger');
+    }
+  };
+
   // ---------- browse ----------
   async function browse() {
     const path = pathInput.value.trim();
     const ref = branchInput.value.trim();
     if (!owner || !selectedRepo) { alert('select repository'); return; }
-    currentBranch = ref; // store for raw links
+    currentBranch = ref;
 
     const qp = new URLSearchParams({ owner, repo: selectedRepo });
     if (path) qp.set('path', path);
@@ -253,11 +524,8 @@
       const arr = Array.isArray(items) ? items : [items];
       folderStats.textContent = `${arr.length} item(s)`;
 
-      // if it's a single file (maybe direct path) -> auto open?
       if (!Array.isArray(items) && items.type === 'file') {
-        // open file automatically
         openFile(items.path);
-        // also show in dir as link
         renderFileItems([items]);
       } else {
         renderFileItems(arr);
@@ -273,7 +541,6 @@
 
     items.forEach(it => {
       if (it.type === 'dir') {
-        // folder: use details/summary bootstrap style
         const details = document.createElement('div');
         details.className = 'border rounded-3 mb-2 p-2 bg-white';
         const summary = document.createElement('div');
@@ -290,7 +557,6 @@
             childContainer.classList.add('d-none');
             return;
           }
-          // fetch children
           try {
             const ref = branchInput.value.trim();
             const qp = new URLSearchParams({ owner, repo: selectedRepo, path: it.path });
@@ -305,7 +571,6 @@
                 itemDiv.innerHTML = `<i class="bi bi-file-earmark text-secondary me-2"></i><a href="#" class="text-decoration-none flex-grow-1">${child.name}</a>`;
                 const a = itemDiv.querySelector('a');
                 a.onclick = (ev) => { ev.preventDefault(); openFile(child.path); };
-                // add inline copy raw link
                 const rawBtn = document.createElement('button');
                 rawBtn.className = 'btn btn-sm btn-link py-0 px-1';
                 rawBtn.innerHTML = '<i class="bi bi-link-45deg"></i>';
@@ -358,7 +623,6 @@
     });
   }
 
-  // helper: copy raw url for any file (without opening)
   function copyRawUrlForPath(filePath) {
     if (!owner || !selectedRepo) return;
     const ref = branchInput.value.trim() || 'main';
@@ -366,13 +630,11 @@
     navigator.clipboard?.writeText(rawUrl).then(() => statusDiv.textContent = '✓ raw url copied');
   }
 
-  // trigger download by simulating raw fetch (just copies raw url actually, but we can later)
   function triggerDownload(filePath) {
-    copyRawUrlForPath(filePath); // for simplicity just copy raw url to clipboard and notify
+    copyRawUrlForPath(filePath);
     statusDiv.textContent = 'raw url copied, use to download';
   }
 
-  // open file
   async function openFile(path) {
     const ref = branchInput.value.trim();
     const qp = new URLSearchParams({ owner, repo: selectedRepo, path });
@@ -387,7 +649,6 @@
       editorPanel.hidden = false;
       statusDiv.textContent = '';
 
-      // update meta dataset
       currentFileMeta.dataset.path = path;
       currentFileMeta.dataset.sha = file.sha;
     } catch (e) {
@@ -395,7 +656,6 @@
     }
   }
 
-  // save file
   async function saveFile() {
     const content = editor.value;
     const message = commitMsg.value.trim() || `Update ${currentFilePath}`;
@@ -417,7 +677,6 @@
     }
   }
 
-  // delete file
   async function delFile() {
     if (!confirm(`Delete ${currentFilePath} ?`)) return;
     const message = commitMsg.value.trim() || `Delete ${currentFilePath}`;
@@ -433,7 +692,6 @@
     }
   }
 
-  // raw link button (for current selected file in editor)
   rawFileLinkBtn.onclick = () => {
     if (!owner || !selectedRepo || !currentFilePath) { alert('no file open'); return; }
     const ref = branchInput.value.trim() || 'main';
@@ -441,7 +699,6 @@
     navigator.clipboard?.writeText(rawUrl).then(() => statusDiv.textContent = '✓ raw url copied (editor)');
   };
 
-  // raw link from browse row (uses path input? we can use current selection)
   rawLinkBtn.onclick = () => {
     if (!owner || !selectedRepo) { alert('select repo'); return; }
     const path = pathInput.value.trim() || '';
@@ -451,30 +708,25 @@
     navigator.clipboard?.writeText(rawUrl).then(() => statusDiv.textContent = '✓ raw url from path copied');
   };
 
-  // download file (from editor) -> copy raw url, but we can also offer
   downloadFileBtn.onclick = () => {
     if (!currentFilePath) return;
     copyRawUrlForPath(currentFilePath);
     statusDiv.textContent = 'raw url copied (use to download)';
   };
 
-  // copy raw content from editor
   copyRawContentBtn.onclick = () => {
     navigator.clipboard?.writeText(editor.value).then(() => statusDiv.textContent = '✓ file content copied');
   };
 
-  // cancel editor
   cancelEditorBtn.onclick = () => {
     editorPanel.hidden = true;
     statusDiv.textContent = '';
   };
 
-  // attach main actions
   browseBtn.onclick = browse;
   saveBtn.onclick = saveFile;
   deleteBtn.onclick = delFile;
 
-  // copy folder list (demo)
   copyFolderListBtn.onclick = () => {
     statusDiv.textContent = 'demo: folder list copy';
   };
@@ -483,8 +735,5 @@
   loadRepos();
 })();
 </script>
-
-<!-- optional: include bootstrap JS for proper toggles (not strictly needed) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
